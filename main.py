@@ -28,25 +28,28 @@ def extract_text_from_pdf(uploaded_file):
     return text
 
 # Streamlit UI
-st.title("📄🔍 Damien's Inspection PDF Search Tool (FAISS + LangChain)")
+col1, col2 = st.columns([1, 6])
+with col1:
+    st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Flag_of_Iowa.svg/1200px-Flag_of_Iowa.svg.png", width=180)
+with col2:
+    st.title("📄🔍 Multi-Document NLP Search Tool (FAISS + LangChain)")
 
-uploaded_file = st.file_uploader("Upload a PDF document", type="pdf")
+uploaded_files = st.file_uploader("Upload one or more PDF documents", type="pdf", accept_multiple_files=True)
 
-if uploaded_file:
-    # Step 1: Extract text
-    raw_text = extract_text_from_pdf(uploaded_file)
-
-    # Step 2: Split into chunks
+if uploaded_files:
+    all_docs = []
     splitter = CharacterTextSplitter(separator=". ", chunk_size=500, chunk_overlap=50)
-    texts = splitter.split_text(raw_text)
-    docs = [Document(page_content=t) for t in texts]
 
-    # Step 3: Create FAISS index
-    db = FAISS.from_documents(docs, embeddings)
-    st.success("PDF indexed. You can now ask questions.")
+    for uploaded_file in uploaded_files:
+        raw_text = extract_text_from_pdf(uploaded_file)
+        texts = splitter.split_text(raw_text)
+        all_docs.extend([Document(page_content=t) for t in texts])
 
-    # Step 4: Accept questions
-    query = st.text_input("Ask a question about the document:")
+    # Create FAISS index with all documents
+    db = FAISS.from_documents(all_docs, embeddings)
+    st.success("PDFs indexed. You can now ask questions across all files.")
+
+    query = st.text_input("Ask a question about the uploaded documents:", key="query", placeholder="Type your question here...", help="This searches across all uploaded PDFs.", label_visibility="visible")
 
     if query:
         results = db.similarity_search(query, k=5)
@@ -54,4 +57,4 @@ if uploaded_file:
         for i, res in enumerate(results):
             st.markdown(f"**{i+1}.** {res.page_content}")
 else:
-    st.info("Please upload a PDF to begin.")
+    st.info("Please upload one or more PDF documents to begin.")
