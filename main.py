@@ -2,6 +2,7 @@ import streamlit as st
 import fitz  # PyMuPDF
 import os
 import tempfile
+import requests
 from langchain.vectorstores import FAISS
 from langchain.embeddings import HuggingFaceEmbeddings
 from langchain.text_splitter import CharacterTextSplitter
@@ -15,41 +16,59 @@ def load_embeddings():
 
 embeddings = load_embeddings()
 
-# Helper to extract text from PDF
-def extract_text_from_pdf(uploaded_file):
-    text = ""
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
-        tmp.write(uploaded_file.read())
-        tmp_path = tmp.name
-    with fitz.open(tmp_path) as doc:
-        for page in doc:
-            text += page.get_text()
-    os.remove(tmp_path)
-    return text
+# PDF links from Iowa DIAL page
+PDF_URLS = [
+    "https://dial.iowa.gov/sites/default/files/documents/2023/05/abhr_guidance.pdf",
+    "https://dial.iowa.gov/sites/default/files/documents/2023/05/fire_door_inspection_form.pdf",
+    "https://dial.iowa.gov/sites/default/files/documents/2023/05/electrical_receptacle_testing_form.pdf",
+    "https://dial.iowa.gov/sites/default/files/documents/2023/05/emergency_lighting_test_log.pdf",
+    "https://dial.iowa.gov/sites/default/files/documents/2023/05/fire_watch_plan_guidance.pdf",
+    "https://dial.iowa.gov/sites/default/files/documents/2023/05/health_care_door_locking_guide.pdf",
+    "https://dial.iowa.gov/sites/default/files/documents/2023/05/evacuation_plan_guide.pdf",
+    "https://dial.iowa.gov/sites/default/files/documents/2023/05/surge_protector_policy.pdf",
+    "https://dial.iowa.gov/sites/default/files/documents/2023/05/holiday_decorating_memo.pdf",
+    "https://dial.iowa.gov/sites/default/files/documents/2023/05/plan_of_correction_template.pdf",
+    "https://dial.iowa.gov/sites/default/files/documents/2023/05/sensitivity_testing_enforcement.pdf",
+    "https://dial.iowa.gov/sites/default/files/documents/2023/05/sprinkler_system_outage_requirements.pdf",
+    "https://dial.iowa.gov/sites/default/files/documents/2023/05/waiver_form.pdf"
+]
+
+# Function to download and extract PDF text
+def download_and_extract_pdfs(pdf_urls):
+    all_docs = []
+    splitter = CharacterTextSplitter(separator=". ", chunk_size=500, chunk_overlap=50)
+
+    for url in pdf_urls:
+        response = requests.get(url)
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+            tmp.write(response.content)
+            tmp_path = tmp.name
+
+        text = ""
+        with fitz.open(tmp_path) as doc:
+            for page in doc:
+                text += page.get_text()
+
+        os.remove(tmp_path)
+        chunks = splitter.split_text(text)
+        all_docs.extend([Document(page_content=chunk) for chunk in chunks])
+
+    return all_docs
 
 # Streamlit UI
 col1, col2 = st.columns([1, 6])
 with col1:
     st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Flag_of_Iowa.svg/1200px-Flag_of_Iowa.svg.png", width=180)
 with col2:
-    st.title("📄🔍 Iowa Fire Inspection Chat GPT Tool")
+    st.title("📄🔍 Iowa Fire Safety Docs Search Tool")
 
-uploaded_files = st.file_uploader("Upload one or more PDF documents", type="pdf", accept_multiple_files=True)
-
-if uploaded_files:
-    all_docs = []
-    splitter = CharacterTextSplitter(separator=". ", chunk_size=500, chunk_overlap=50)
-
-    for uploaded_file in uploaded_files:
-        raw_text = extract_text_from_pdf(uploaded_file)
-        texts = splitter.split_text(raw_text)
-        all_docs.extend([Document(page_content=t) for t in texts])
-
-    # Create FAISS index with all documents
+if st.button("Build and Index Text from Iowa DIAL PDFs"):
+    st.info("Downloading and processing PDFs...")
+    all_docs = download_and_extract_pdfs(PDF_URLS)
     db = FAISS.from_documents(all_docs, embeddings)
-    st.success("PDFs indexed. You can now ask questions across all files.")
+    st.success("All documents indexed. You can now search them below.")
 
-    query = st.text_input("Ask a question about the uploaded documents:", key="query", placeholder="Type your question here...", help="This searches across all uploaded PDFs.", label_visibility="visible")
+    query = st.text_input("Ask a question about the documents:", key="query", placeholder="Type your question here...", help="This searches across all the Iowa DIAL PDF documents.", label_visibility="visible")
 
     if query:
         results = db.similarity_search(query, k=5)
@@ -57,4 +76,4 @@ if uploaded_files:
         for i, res in enumerate(results):
             st.markdown(f"**{i+1}.** {res.page_content}")
 else:
-    st.info("Please upload 40 or more PDF documents to begin.")
+    st.info("Click the button above to fetch and search PDFs from the Iowa DIAL Fire Safety page.")
