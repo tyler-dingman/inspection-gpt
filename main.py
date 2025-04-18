@@ -42,18 +42,20 @@ def download_and_extract_pdfs(pdf_urls):
         response = requests.get(url)
         with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
             tmp.write(response.content)
-            tmp.seek(0)  # Reset pointer before reading
-            try:
-                doc = fitz.open(stream=tmp.read(), filetype="pdf")
-                text = ""
-                for page in doc:
-                    text += page.get_text()
-                doc.close()
-            except Exception as e:
-                st.warning(f"Skipping {url} due to error: {str(e)}")
-                continue
+            tmp_path = tmp.name
 
-        os.remove(tmp.name)
+        text = ""
+        try:
+            doc = fitz.open(stream=tmp.read(), filetype="pdf")
+        except Exception as e:
+            st.warning(f"Skipping {url} due to error: {str(e)}")
+            os.remove(tmp_path)
+            continue
+            for page in doc:
+                text += page.get_text()
+            doc.close()
+
+        os.remove(tmp_path)
         chunks = splitter.split_text(text)
         all_docs.extend([Document(page_content=chunk) for chunk in chunks])
 
@@ -69,7 +71,10 @@ with col2:
 if st.button("Build and Index Text from Iowa DIAL PDFs"):
     st.info("Downloading and processing PDFs...")
     all_docs = download_and_extract_pdfs(PDF_URLS)
-    db = FAISS.from_documents(all_docs, embeddings)
+    if not all_docs:
+        st.error("No documents were processed successfully. Please check the PDF sources.")
+    else:
+        db = FAISS.from_documents(all_docs, embeddings)
     st.success("All documents indexed. You can now search them below.")
 
     query = st.text_input("Ask a question about the documents:", key="query", placeholder="Type your question here...", help="This searches across all the Iowa DIAL PDF documents.", label_visibility="visible")
