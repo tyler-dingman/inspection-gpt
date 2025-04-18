@@ -32,7 +32,7 @@ col1, col2 = st.columns([1, 6])
 with col1:
     st.image("https://upload.wikimedia.org/wikipedia/commons/thumb/a/aa/Flag_of_Iowa.svg/1200px-Flag_of_Iowa.svg.png", width=180)
 with col2:
-    st.title("📄🔍 Multi-Document NLP Search Tool (FAISS + LangChain)")
+    st.title("📄🔍 Iowa Fire Inspection Chat GPT Tool")
 
 uploaded_files = st.file_uploader("Upload one or more PDF documents", type="pdf", accept_multiple_files=True)
 
