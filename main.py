@@ -57,4 +57,4 @@ if uploaded_files:
         for i, res in enumerate(results):
             st.markdown(f"**{i+1}.** {res.page_content}")
 else:
-    st.info("Please upload one or more PDF documents to begin.")
+    st.info("Please upload 40 or more PDF documents to begin.")
