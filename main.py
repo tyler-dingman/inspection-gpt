@@ -47,7 +47,7 @@ def download_and_extract_pdfs(pdf_urls):
 
             text = ""
             try:
-                doc = fitz.open(stream=tmp.read(), filetype="pdf")
+                doc = fitz.open(tmp.name)
                 for page in doc:
                     text += page.get_text()
                 doc.close()
