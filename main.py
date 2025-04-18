@@ -28,7 +28,7 @@ def extract_text_from_pdf(uploaded_file):
     return text
 
 # Streamlit UI
-st.title("📄🔍 Local NLP PDF Search Tool (FAISS + LangChain)")
+st.title("📄🔍 Damien's Inspection PDF Search Tool (FAISS + LangChain)")
 
 uploaded_file = st.file_uploader("Upload a PDF document", type="pdf")
 
