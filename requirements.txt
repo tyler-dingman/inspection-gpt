@@ -4,3 +4,4 @@ sentence-transformers
 faiss-cpu
 langchain==0.0.308
 numpy
+requests
