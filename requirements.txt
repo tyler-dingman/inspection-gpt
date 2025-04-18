@@ -1,5 +1,5 @@
 streamlit
 PyMuPDF
-faiss-cpu
+chromadb
 sentence-transformers
 numpy
