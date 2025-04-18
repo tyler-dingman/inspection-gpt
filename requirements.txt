@@ -2,5 +2,5 @@ streamlit
 PyMuPDF
 sentence-transformers
 faiss-cpu
-langchain
+langchain==0.0.308
 numpy
