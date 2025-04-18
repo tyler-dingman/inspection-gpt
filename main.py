@@ -33,7 +33,6 @@ PDF_URLS = [
     "https://dial.iowa.gov/sites/default/files/documents/2023/05/waiver_form.pdf"
 ]
 
-# Function to download and extract PDF text
 def download_and_extract_pdfs(pdf_urls):
     all_docs = []
     splitter = CharacterTextSplitter(separator=". ", chunk_size=500, chunk_overlap=50)
@@ -45,15 +44,22 @@ def download_and_extract_pdfs(pdf_urls):
             tmp_path = tmp.name
 
         text = ""
-        with fitz.open(tmp_path) as doc:
+        try:
+            doc = fitz.open(tmp_path)
             for page in doc:
                 text += page.get_text()
+            doc.close()
+        except Exception as e:
+            st.warning(f"Skipping {url} due to error: {str(e)}")
+            os.remove(tmp_path)
+            continue
 
         os.remove(tmp_path)
         chunks = splitter.split_text(text)
         all_docs.extend([Document(page_content=chunk) for chunk in chunks])
 
     return all_docs
+
 
 # Streamlit UI
 col1, col2 = st.columns([1, 6])
