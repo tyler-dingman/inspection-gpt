@@ -1,44 +1,57 @@
-# 📄🔍 Local NLP PDF Search Tool
+import streamlit as st
+import fitz  # PyMuPDF
+import os
+import tempfile
+from langchain.vectorstores import FAISS
+from langchain.embeddings import HuggingFaceEmbeddings
+from langchain.text_splitter import CharacterTextSplitter
+from langchain.docstore.document import Document
+import numpy as np
 
-This is a simple web app that lets you upload a PDF and ask natural language questions about its contents — all **without using the internet or any API keys**.
+# Load local embedding model
+@st.cache_resource
+def load_embeddings():
+    return HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
-## 🚀 Features
-- 📤 Upload PDFs
-- 🔎 Ask questions in plain English
-- 🧠 Powered by local embeddings with `sentence-transformers`
-- 💬 Simple Streamlit interface
-- 🛠 Runs 100% locally — no OpenAI key needed
+embeddings = load_embeddings()
 
-## 🛠 Setup Instructions
+# Helper to extract text from PDF
+def extract_text_from_pdf(uploaded_file):
+    text = ""
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp:
+        tmp.write(uploaded_file.read())
+        tmp_path = tmp.name
+    with fitz.open(tmp_path) as doc:
+        for page in doc:
+            text += page.get_text()
+    os.remove(tmp_path)
+    return text
 
-1. **Clone the repo:**
-```bash
-git clone https://github.com/tyler-dingman/inspection-gpt.git
-cd inspection-gpt
-```
+# Streamlit UI
+st.title("📄🔍 Local NLP PDF Search Tool (FAISS + LangChain)")
 
-2. **Install dependencies:**
-```bash
-pip install -r requirements.txt
-```
+uploaded_file = st.file_uploader("Upload a PDF document", type="pdf")
 
-3. **Run the app:**
-```bash
-streamlit run main.py
-```
+if uploaded_file:
+    # Step 1: Extract text
+    raw_text = extract_text_from_pdf(uploaded_file)
 
-4. **Use the web interface:**
-- Upload a PDF
-- Ask your questions
-- View top matching answers
+    # Step 2: Split into chunks
+    splitter = CharacterTextSplitter(separator=". ", chunk_size=500, chunk_overlap=50)
+    texts = splitter.split_text(raw_text)
+    docs = [Document(page_content=t) for t in texts]
 
-## 📦 Requirements
-- Python 3.8+
+    # Step 3: Create FAISS index
+    db = FAISS.from_documents(docs, embeddings)
+    st.success("PDF indexed. You can now ask questions.")
 
-## ✨ Credits
-- [SentenceTransformers](https://www.sbert.net/)
-- [FAISS](https://github.com/facebookresearch/faiss)
-- [Streamlit](https://streamlit.io/)
+    # Step 4: Accept questions
+    query = st.text_input("Ask a question about the document:")
 
-## 🔐 Privacy
-This tool runs locally on your machine and never sends any data to external servers.
+    if query:
+        results = db.similarity_search(query, k=5)
+        st.subheader("🔎 Top Answers:")
+        for i, res in enumerate(results):
+            st.markdown(f"**{i+1}.** {res.page_content}")
+else:
+    st.info("Please upload a PDF to begin.")
